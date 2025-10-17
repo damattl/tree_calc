@@ -1,0 +1,286 @@
+#[derive(Clone, Debug)]
+struct BinaryTree<T> {
+    mem: Vec<T>,
+    empty: T,
+}
+
+impl<T> BinaryTree<T>
+where
+    T: Clone + Eq,
+{
+    pub fn new(empty: T) -> Self {
+        BinaryTree::<T> {
+            mem: Vec::new(),
+            empty,
+        }
+    }
+    pub fn new_with_root(x: T, empty: T) -> Self {
+        BinaryTree::<T> {
+            mem: vec![x],
+            empty,
+        }
+    }
+    pub fn bin(&mut self, x: T, b: BinaryTree<T>) -> &BinaryTree<T> {
+        let mut mem = vec![x];
+
+        let new_len = self.mem.len().max(b.mem.len()) * 2 + 1;
+
+        for i in 1..new_len {
+            let mut mask = (i + 1).next_power_of_two();
+            if !(i + 1).is_power_of_two() {
+                mask = mask >> 1;
+            }
+            // println!("i = {}", i);
+            // println!("mask = {:b}", mask);
+
+            if (i + 1) ^ mask >= mask >> 1 {
+                let idx = i ^ mask;
+                match b.mem.get(idx) {
+                    Some(x) => mem.push(x.clone()),
+                    None => mem.push(self.empty.clone()),
+                };
+                // println!("b");
+            } else {
+                // println!("mask >> 1 = {:b}", mask >> 1);
+                // println!("mask & mask = {:b}", mask | (mask >> 1));
+                // println!("i + 1 = {:b}", i + 1);
+                let idx = ((i + 1) ^ (mask | (mask >> 1))) - 1;
+                match self.mem.get(idx) {
+                    Some(x) => mem.push(x.clone()),
+                    None => mem.push(self.empty.clone()),
+                };
+                // println!("self")
+            }
+        }
+
+        self.mem = mem;
+        self
+    }
+
+    pub fn left_idx(k: usize) -> usize {
+        2 * k + 1
+    }
+
+    pub fn right_idx(k: usize) -> usize {
+        2 * k + 2
+    }
+
+    pub fn parent_idx(k: usize) -> Option<usize> {
+        if k == 0 {
+            return None;
+        }
+        Some((k - 1) / 2)
+    }
+
+    pub fn left(&self, k: usize) -> (Option<usize>, Option<&T>) {
+        let idx = BinaryTree::<T>::left_idx(k);
+        match self.mem.get(idx) {
+            Some(node) => match *node == self.empty {
+                true => (None, None),
+                false => (Some(idx), Some(node)),
+            },
+            None => (None, None),
+        }
+    }
+
+    pub fn right(&self, k: usize) -> (Option<usize>, Option<&T>) {
+        let idx = BinaryTree::<T>::right_idx(k);
+        match self.mem.get(idx) {
+            Some(node) => match *node == self.empty {
+                true => (None, None),
+                false => (Some(idx), Some(node)),
+            },
+            None => (None, None),
+        }
+    }
+
+    pub fn parent(&self, k: usize) -> (Option<usize>, Option<&T>) {
+        let idx = BinaryTree::<T>::parent_idx(k);
+        match idx {
+            Some(idx) => (Some(idx), self.mem.get(idx)),
+            None => (None, None),
+        }
+    }
+
+    pub fn traverse_postorder<F>(&self, k: usize, f: &mut F)
+    where
+        F: FnMut((usize, Option<&T>)),
+    {
+        if k >= self.mem.len() {
+            return;
+        }
+        let node = self.mem.get(k);
+        if node.is_none() || *node.unwrap() == self.empty {
+            return;
+        }
+        self.traverse_postorder(BinaryTree::<T>::left_idx(k), f);
+        self.traverse_postorder(BinaryTree::<T>::right_idx(k), f);
+        f((k, node));
+    }
+
+    pub fn traverse_inorder<F>(&self, k: usize, f: &mut F)
+    where
+        F: FnMut((usize, Option<&T>)),
+    {
+        if k >= self.mem.len() {
+            return;
+        }
+        let node = self.mem.get(k);
+        if node.is_none() || *node.unwrap() == self.empty {
+            return;
+        }
+
+        self.traverse_inorder(BinaryTree::<T>::left_idx(k), f);
+        f((k, node));
+
+        self.traverse_inorder(BinaryTree::<T>::right_idx(k), f);
+    }
+}
+
+fn parse_term(term: &str) -> Option<BinaryTree<char>> {
+    let chars: Vec<char> = term.chars().collect();
+    // TODO: Append missing =
+    // TODO: Implement for multi digit inputs -> Parse tokens with regex and use Strings instead of chars.
+    // Idea: Use custom operator struct: struct { operator: Option<OperatorEnum>, value: i32 }
+
+    let mut s1: Vec<char> = Vec::new();
+    let mut s2: Vec<BinaryTree<char>> = Vec::new();
+
+    let mut idx = 0;
+    while idx < chars.len() {
+        let c = chars[idx]; // Safe to call, as there is always at least on char in the string
+        if c == ' ' {
+            idx += 1;
+            continue;
+        } // TODO: Make regex
+
+        println!("{}", c);
+        println!("{:#?}", s1);
+        println!("{:#?}", s2);
+        let has_rem = term.len() > 1;
+
+        if c == '(' || c == '*' {
+            s1.push(c);
+            idx += 1;
+            continue;
+        }
+
+        if c == '+' && s1.last().is_some_and(|x| *x == '*') && s2.len() >= 2 {
+            s1.pop();
+            let l = s2.len();
+            let y = s2.pop().unwrap();
+            let x = s2.get_mut(l - 2).unwrap();
+            x.bin('*', y);
+            continue;
+        }
+
+        if c == '+' {
+            s1.push(c);
+            idx += 1;
+            continue;
+        }
+
+        if c == ')' && s1.last().is_some_and(|x| *x == '+') && s2.len() >= 2 {
+            s1.pop();
+            let l = s2.len();
+            let y = s2.pop().unwrap();
+            let x = s2.get_mut(l - 2).unwrap();
+            x.bin('+', y);
+            continue;
+        }
+
+        if c == ')' && s1.last().is_some_and(|x| *x == '*') && s2.len() >= 2 {
+            s1.pop();
+            let l = s2.len();
+            let y = s2.pop().unwrap();
+            let x = s2.get_mut(l - 2).unwrap();
+            x.bin('*', y);
+            continue;
+        }
+
+        if c == ')' && s1.last().is_some_and(|x| *x == '(') {
+            s1.pop();
+            idx += 1;
+            continue;
+        }
+
+        if c == '=' && s1.last().is_some_and(|x| *x == '+') && s2.len() >= 2 {
+            s1.pop();
+            let l = s2.len();
+            let y = s2.pop().unwrap();
+            let x = s2.get_mut(l - 2).unwrap();
+            x.bin('+', y);
+            continue;
+        }
+
+        if c == '=' && s1.last().is_some_and(|x| *x == '*') && s2.len() >= 2 {
+            s1.pop();
+            let l = s2.len();
+            let y = s2.pop().unwrap();
+            let x = s2.get_mut(l - 2).unwrap();
+            x.bin('*', y);
+            continue;
+        }
+
+        if c == '=' && s1.is_empty() && s2.len() == 1 {
+            return s2.last().cloned();
+        }
+
+        if has_rem {
+            idx += 1;
+            s2.push(BinaryTree::new_with_root(c, char::MIN));
+            continue;
+        }
+    }
+    println!("{s1:#?}");
+    println!("{s2:#?}");
+    None
+}
+
+fn calculate_result(parsed_term: &BinaryTree<char>) -> u32 {
+    let mut result: Vec<u32> = vec![];
+    parsed_term.traverse_postorder(0, &mut |node| {
+        let (_, el) = node;
+        if el.is_none() {
+            return;
+        }
+        // println!("{el:?}");
+        // println!("{result:#?}");
+
+        match el {
+            Some('+') => {
+                let a = result[result.len() - 2];
+                let b = result[result.len() - 1];
+                result.pop();
+                result.pop();
+                result.push(a + b);
+            }
+            Some('*') => {
+                let a = result[result.len() - 2];
+                let b = result[result.len() - 1];
+                result.pop();
+                result.pop();
+                result.push(a * b);
+            }
+            Some(el) => {
+                // println!("{el:?}");
+                let n = el.to_digit(10).unwrap();
+                result.push(n);
+            }
+            None => {
+                return;
+            }
+        };
+    });
+
+    *result.get(0).unwrap_or(&0u32)
+}
+
+fn main() {
+    // TODO: Parse input from console
+    let term_tree = parse_term("(3 + 4) * (7 + 3 * 4 + 5) =").unwrap();
+    term_tree.traverse_postorder(0, &mut |node| println!("{node:?}"));
+    println!("{:#?}", term_tree);
+    let result = calculate_result(&term_tree);
+    println!("{result:?}");
+}
