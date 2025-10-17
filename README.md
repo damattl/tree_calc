@@ -3,7 +3,8 @@
 ### Operations
 () + - * =
 ## Supported
-### Constants e, pi
+### Constants
+e, pi
 
 ## TODO
 ### Logic
