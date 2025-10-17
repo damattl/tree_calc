@@ -8,11 +8,11 @@ e, pi
 
 ## TODO
 ### Logic
-[ ] div
-[ ] log, ln, exp
+- [ ] div
+- [ ] log, ln, exp
 
 ### UI
-[ ] Numberpads
-[ ] Clear All
+- [ ] Numberpads
+- [ ] Clear All
 
 and more...
