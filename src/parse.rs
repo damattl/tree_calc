@@ -13,7 +13,7 @@ use crate::{
 pub enum ParsingError {
     #[error("Tree was empty or missing after parsing")]
     EmptyTree,
-    #[error("Input () is not allowed")]
+    #[error("Input {0} is not allowed")]
     InvalidInput(String),
 }
 
@@ -21,19 +21,23 @@ fn tokenize_term<T: Numeric>(
     term: &str,
     constants: &Constants<T>,
 ) -> Result<Vec<Token<T>>, ParsingError> {
-    let regex = Regex::new(r"(?m)(?:-?\d+(?:\.|,\d+)?)|[()+*-=]|([A-Za-z]+)").unwrap();
-    let result = regex.find_iter(term);
+    let regex =
+        Regex::new(r"(?m)(0[bB][01]*(?:[iu]\d{1,2})?)|(0[xX][0-9A-Fa-f]*(?:[iu]\d{1,2})?)|(?:-?\d+(?:\.|,\d+)?)|[()+*-=]|([A-Za-z]+)")
+            .unwrap();
+    let term_lower = term.to_lowercase();
+    let result = regex.find_iter(&term_lower);
 
     let mut tokens: Vec<Token<T>> = vec![];
 
     for m in result {
+        println!("{:#?}", m);
         let token = match m.as_str() {
             "e" => Token::Value(constants.e),
             "pi" => Token::Value(constants.pi),
             other => match Token::<T>::from_str(other) {
                 Ok(t) => t,
-                Err(_) => {
-                    println!("Token not allowed: {}", other);
+                Err(err) => {
+                    println!("Token not allowed: {}, {err:?}", other);
                     return Err(ParsingError::InvalidInput(other.to_owned()));
                 }
             },
@@ -185,4 +189,22 @@ pub fn parse_term<T: Numeric>(
         s2.push(BinaryTree::new_with_root(t, Token::Empty));
     }
     Err(ParsingError::EmptyTree)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_tokenize_term() {
+        let s = "0xffi16 + 1";
+        let exp = vec![Token::Value(255.0), Token::add(), Token::Value(1.0)];
+
+        let constants = Constants { e: 2.7, pi: 3.14 };
+
+        let tokens = tokenize_term(s, &constants).unwrap();
+        println!("{:#?}", tokens);
+
+        assert!(exp[0] == tokens[0]);
+    }
 }

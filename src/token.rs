@@ -3,6 +3,10 @@ use std::{
     str::FromStr,
 };
 
+use anyhow::anyhow;
+
+use crate::traits::{FromStrError, Numeric};
+
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Operator {
     EQ,
@@ -30,7 +34,7 @@ impl fmt::Display for Operator {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Token<T>
 where
-    T: PartialEq + Copy + FromStr + ToString,
+    T: Numeric,
 {
     Empty,
     Op(Operator),
@@ -39,7 +43,7 @@ where
 
 impl<T> PartialEq<Operator> for Token<T>
 where
-    T: PartialEq + Copy + FromStr + ToString,
+    T: Numeric,
 {
     fn eq(&self, other: &Operator) -> bool {
         self == &Self::Op(*other)
@@ -47,14 +51,14 @@ where
 }
 impl<T> PartialEq<Operator> for &Token<T>
 where
-    T: PartialEq + Copy + FromStr + ToString,
+    T: Numeric,
 {
     fn eq(&self, other: &Operator) -> bool {
         self == &&Token::Op(*other)
     }
 }
 
-impl<T: PartialEq + Copy + FromStr + ToString> fmt::Display for Token<T> {
+impl<T: Numeric> fmt::Display for Token<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Token::Op(op) => write!(f, "{}", op),
@@ -64,8 +68,8 @@ impl<T: PartialEq + Copy + FromStr + ToString> fmt::Display for Token<T> {
     }
 }
 
-impl<T: PartialEq + Copy + FromStr + ToString> FromStr for Token<T> {
-    type Err = ();
+impl<T: Numeric> FromStr for Token<T> {
+    type Err = FromStrError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let token = match s {
@@ -75,17 +79,29 @@ impl<T: PartialEq + Copy + FromStr + ToString> FromStr for Token<T> {
             "(" => Token::<T>::i(),
             ")" => Token::<T>::out(),
             "=" => Token::<T>::eq(),
-            el => match el.parse::<T>() {
-                Ok(n) => Token::<T>::Value(n),
-                Err(_) => return Err(()),
-            },
+            el => {
+                if el.len() >= 2 {
+                    match &el[..2] {
+                        "0x" => T::from_hex_str(el).map(|n| Token::<T>::Value(n))?,
+                        "0b" => T::from_binary_str(el).map(|n| Token::<T>::Value(n))?,
+                        _ => el
+                            .parse::<T>()
+                            .map(|n| Token::<T>::Value(n))
+                            .map_err(|_| anyhow!("parsing {} failed", el))?,
+                    }
+                } else {
+                    el.parse::<T>()
+                        .map(|n| Token::<T>::Value(n))
+                        .map_err(|_| anyhow!("parsing {} failed", el))?
+                }
+            }
         };
 
         Ok(token)
     }
 }
 
-impl<T: PartialEq + Copy + FromStr + ToString> Token<T> {
+impl<T: Numeric> Token<T> {
     pub fn mul() -> Self {
         Self::Op(Operator::MUL)
     }

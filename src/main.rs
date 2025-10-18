@@ -65,9 +65,36 @@ impl Calculator {
                 .align_y(Alignment::Center),
         ];
 
+        // let keypad = column![
+        //     row![
+        //         button("7").width(32),
+        //         button("8").width(32),
+        //         button("9").width(32),
+        //         button("x").width(32),
+        //     ],
+        //     row![
+        //         button("4").width(32),
+        //         button("5").width(32),
+        //         button("6").width(32),
+        //         button("-").width(32),
+        //     ],
+        //     row![
+        //         button("1").width(32),
+        //         button("2").width(32),
+        //         button("3").width(32),
+        //         button("+").width(32),
+        //     ],
+        //     row![
+        //         button(" ").width(32),
+        //         button("0").width(32),
+        //         button(",").width(32),
+        //         button("=").width(32),
+        //     ],
+        // ];
+
         let error = text(&self.error).color(color!(0xff0000));
 
-        column![calc_row, error]
+        column![calc_row, error /*keypad*/,]
     }
 }
 
