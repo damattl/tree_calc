@@ -56,6 +56,7 @@ fn split_at_first_non_digit(s: &str) -> (&str, &str) {
 impl FromBinaryStr for f32 {
     fn from_binary_str(s: &str) -> Result<Self, FromStrError> {
         let (num_part, suffix) = split_at_first_non_digit(s.trim_start_matches("0b"));
+        println!("Got a binary");
 
         match suffix {
             "i16" => {
@@ -75,7 +76,7 @@ impl FromBinaryStr for f32 {
                 Ok((bits as i8) as f32)
             }
             "" => {
-                let bits = u32::from_str_radix(s, 2)?;
+                let bits = u32::from_str_radix(num_part, 2)?;
                 Ok(f32::from_bits(bits))
             }
             other => Err(FromStrError::InvalidSuffix(other.to_owned())),
